@@ -86,6 +86,8 @@ def getstatus():
 
     print inputSourceName, labelName
 
+#  inputSourceName and labelName are updated after using remote app. 
+#   
 #<?xml version="1.0" encoding="utf-8"?>
 #<envelope>
 #<ROAPError>200</ROAPError>
