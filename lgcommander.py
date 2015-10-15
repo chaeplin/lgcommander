@@ -2,6 +2,7 @@
 # encoding: utf-8
 # code from https://github.com/ubaransel/lgcommander
 # code from https://github.com/ypid/lgcommander
+# SimpLink off
 
 import re
 import logging
@@ -14,9 +15,11 @@ import urllib2
 from PIL import Image
 import StringIO
 
+
 lgtv = {}
 headers = {"Content-Type": "application/atom+xml"}
 lgtv["pairingKey"] = "123456"
+lgtv["ipaddress"]  = ""
 
 def getip():
     strngtoXmit =   'M-SEARCH * HTTP/1.1' + '\r\n' + \
@@ -141,22 +144,37 @@ def getscreenimage():
         return None
 
     htmlout = httpResponse.read()
-    im = Image.open(StringIO.StringIO(htmlout))
-    im.save("cap.jpg", "JPEG")
+    im = Image.open(StringIO.StringIO(htmlout)).convert('RGB')
 
+    ch = ''
+    for x in range(1, 5):
+        r, g, b = im.getpixel(((130 * x), 430))
+        if r < 180 and g < 50 and b < 60:
+            ch = x
+            break
+
+    if ch:
+        return ch
+    else:
+        return None
+
+# /udap/api/data?target=screen_image
+#151 19 58
+#234 203 211
+#233 202 210
+#234 203 211
 
 #------------------------
-logging.basicConfig(
-    format='# %(levelname)s: %(message)s',
-    level=logging.DEBUG,
-)
+#logging.basicConfig(
+#    format='# %(levelname)s: %(message)s',
+#    level=logging.DEBUG,
+#)
 
 #------------------------
 lgtv["ipaddress"] = getip()
 if not lgtv["ipaddress"]:
    logging.debug("TV not found")
    exit()
-    
 
 theSessionid = getSessionid()
 while theSessionid == "Unauthorized" :
@@ -165,8 +183,9 @@ while theSessionid == "Unauthorized" :
 
 lgtv["session"] = theSessionid
 
-#
-handleCommand("47")
-time.sleep(3)
-getscreenimage()
-handleCommand("20")
+if handleCommand("47"):
+    time.sleep(3)
+    m = getscreenimage()
+    handleCommand("20")
+
+print m
