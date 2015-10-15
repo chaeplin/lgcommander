@@ -7,13 +7,16 @@ import re
 import logging
 import socket
 import sys
+import time
 import xml.etree.ElementTree as etree
 import httplib
-from cStringIO import StringIO
+import urllib2
+from PIL import Image
+import StringIO
 
 lgtv = {}
 headers = {"Content-Type": "application/atom+xml"}
-lgtv["pairingKey"] = "111111"
+lgtv["pairingKey"] = "123456"
 
 def getip():
     strngtoXmit =   'M-SEARCH * HTTP/1.1' + '\r\n' + \
@@ -24,13 +27,13 @@ def getip():
 
     bytestoXmit = strngtoXmit.encode()
     sock = socket.socket( socket.AF_INET, socket.SOCK_DGRAM )
-    sock.settimeout(3)
+    sock.settimeout(1)
     found = False
     gotstr = 'notyet'
     i = 0
     ipaddress = None
     sock.sendto( bytestoXmit,  ('239.255.255.250', 1900 ) )
-    while not found and i <= 5 and gotstr == 'notyet':
+    while not found and i <= 2 and gotstr == 'notyet':
         try:
             gotbytes, addressport = sock.recvfrom(512)
             gotstr = gotbytes.decode()
@@ -49,13 +52,15 @@ def getip():
         i += 1
     sock.close()
     if not found:
-        raise socket.error("Lg TV not found.") 
+        return None
     logging.info("Using device: {} over transport protocol: {}/tcp".format(ipaddress, port))
     return ipaddress
 
 
 def getSessionid():
     if not lgtv["pairingKey"]:
+        return None
+    if not lgtv["ipaddress"]:
         return None
 
     conn = httplib.HTTPConnection(lgtv["ipaddress"], port=8080)
@@ -72,22 +77,8 @@ def getSessionid():
         raise Exception("Could not get Session Id: {}".format(_session_id))
     return _session_id
 
-def getstatus():
-    conn = httplib.HTTPConnection(lgtv["ipaddress"], port=8080)
-    conn.request("GET", "/udap/api/data?target=cur_channel", headers=headers)
-    httpResponse = conn.getresponse()
-    if httpResponse.reason != 'OK':
-        return None
-    tree = etree.XML(httpResponse.read())
-
-    for data in tree.findall('data'):
-        inputSourceName = data.find('inputSourceName').text
-        labelName = data.find('labelName').text
-
-    print inputSourceName, labelName
-
-#  inputSourceName and labelName are updated after using remote app. 
-#   
+# /udap/api/data?target=cur_channel are updated after selecting input source using remote app.
+# so useless after power up  
 #<?xml version="1.0" encoding="utf-8"?>
 #<envelope>
 #<ROAPError>200</ROAPError>
@@ -110,22 +101,72 @@ def getstatus():
 #</data>
 #</envelope>
 
-# /udap/api/data?target=screen_image
+def getstatus():
+    conn = httplib.HTTPConnection(lgtv["ipaddress"], port=8080)
+    conn.request("GET", "/udap/api/data?target=cur_channel", headers=headers)
+    httpResponse = conn.getresponse()
+    if httpResponse.reason != 'OK':
+        return None
 
+    htmlout = httpResponse.read()
+    print htmlout
+
+    tree = etree.XML(htmlout)
+    for data in tree.findall('data'):
+        inputSourceIdx  = data.find('inputSourceIdx').text
+        inputSourceName = data.find('inputSourceName').text
+        labelName = data.find('labelName').text
+
+    print inputSourceIdx, inputSourceName, labelName
+
+
+def handleCommand(cmdcode):
+    conn = httplib.HTTPConnection( lgtv["ipaddress"], port=8080)
+    cmdText = "<?xml version=\"1.0\" encoding=\"utf-8\"?><command>" \
+                + "<name>HandleKeyInput</name><value>" \
+                + cmdcode \
+                + "</value></command>"
+    conn.request("POST", "/roap/api/command", cmdText, headers=headers)
+    httpResponse = conn.getresponse()
+    if httpResponse.reason != 'OK':
+        return None
+    
+    return True
+
+def getscreenimage():
+    conn = httplib.HTTPConnection(lgtv["ipaddress"], port=8080)
+    conn.request("GET", "/udap/api/data?target=screen_image")
+    httpResponse = conn.getresponse()
+    if httpResponse.reason != 'OK':
+        return None
+
+    htmlout = httpResponse.read()
+    im = Image.open(StringIO.StringIO(htmlout))
+    im.save("cap.jpg", "JPEG")
+
+
+#------------------------
 logging.basicConfig(
     format='# %(levelname)s: %(message)s',
     level=logging.DEBUG,
-    # level=logging.INFO,
 )
 
+#------------------------
 lgtv["ipaddress"] = getip()
+if not lgtv["ipaddress"]:
+   logging.debug("TV not found")
+   exit()
+    
+
 theSessionid = getSessionid()
 while theSessionid == "Unauthorized" :
     getPairingKey()
     theSessionid = getSessionid()
 
-if len(theSessionid) < 8 : sys.exit("Could not get Session Id: " + theSessionid)
-
 lgtv["session"] = theSessionid
 
-getstatus()
+#
+handleCommand("47")
+time.sleep(3)
+getscreenimage()
+handleCommand("20")
