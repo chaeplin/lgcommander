@@ -110,6 +110,7 @@ def getstatus():
 #</data>
 #</envelope>
 
+# /udap/api/data?target=screen_image
 
 logging.basicConfig(
     format='# %(levelname)s: %(message)s',
