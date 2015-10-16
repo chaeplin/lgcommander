@@ -183,8 +183,13 @@ while theSessionid == "Unauthorized" :
 
 lgtv["session"] = theSessionid
 
+# exit any current menu in screen
+handleCommand("412")
+time.sleep(1)
+
+# check current input source no
 if handleCommand("47"):
-    time.sleep(3)
+    time.sleep(4)
     m = getscreenimage()
     handleCommand("20")
 
