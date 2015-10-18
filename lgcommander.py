@@ -13,12 +13,14 @@ import xml.etree.ElementTree as etree
 import httplib
 import urllib2
 from PIL import Image
+import pyocr
+import pyocr.builders
 import StringIO
 
 
 lgtv = {}
 headers = {"Content-Type": "application/atom+xml"}
-lgtv["pairingKey"] = "123456"
+lgtv["pairingKey"] = "914850"
 lgtv["ipaddress"]  = ""
 
 def getip():
@@ -146,6 +148,29 @@ def getscreenimage():
     htmlout = httpResponse.read()
     im = Image.open(StringIO.StringIO(htmlout)).convert('RGB')
 
+# ocr
+    tools = pyocr.get_available_tools()
+    if len(tools) == 0:
+        print("No OCR tool found")
+        sys.exit(1)
+    tool = tools[0]
+    lang = 'eng'
+
+# crop and ocr
+    im_crop = {}
+    for x in range(0, 4):
+        box = ((65 + (140 * x)), 394, (65 + 120 + (140 * x)), 416)
+        im_crop[x] = im.crop(box)
+        ocrtxt = tool.image_to_string(im_crop[x], lang=lang, builder=pyocr.builders.TextBuilder())
+        print ocrtxt
+
+# ocr out
+# TV
+# HDMH
+# RGBiPC
+# HDMIZ
+
+# get ch
     ch = ''
     for x in range(1, 5):
         r, g, b = im.getpixel(((130 * x), 430))
