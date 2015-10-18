@@ -19,6 +19,7 @@ import StringIO
 
 
 lgtv = {}
+lgtvch = {}
 headers = {"Content-Type": "application/atom+xml"}
 lgtv["pairingKey"] = "914850"
 lgtv["ipaddress"]  = ""
@@ -162,7 +163,8 @@ def getscreenimage():
         box = ((65 + (140 * x)), 394, (65 + 120 + (140 * x)), 416)
         im_crop[x] = im.crop(box)
         ocrtxt = tool.image_to_string(im_crop[x], lang=lang, builder=pyocr.builders.TextBuilder())
-        print ocrtxt
+        lgtvch[x] = ocrtxt
+        #print ocrtxt
 
 # ocr out
 # TV
@@ -218,4 +220,4 @@ if handleCommand("47"):
     m = getscreenimage()
     handleCommand("20")
 
-print m
+print ("Current ch is %s : %s") % (m, lgtvch[m-1])
